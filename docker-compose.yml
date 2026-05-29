@@ -1,0 +1,37 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: ai-triage-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ai_triage_db
+      POSTGRES_USER: ai_triage_user
+      POSTGRES_PASSWORD: ai_triage_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - ai_triage_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ai_triage_user -d ai_triage_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    container_name: ai-triage-api
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ai_triage_db
+      SPRING_DATASOURCE_USERNAME: ai_triage_user
+      SPRING_DATASOURCE_PASSWORD: ai_triage_password
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: gpt-4o-mini
+    ports:
+      - "8080:8080"
+
+volumes:
+  ai_triage_postgres_data:
