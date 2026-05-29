@@ -44,3 +44,9 @@ springdoc:
     path: /swagger-ui.html
     operations-sorter: method
     tags-sorter: alpha
+
+auth:
+  jwt:
+    secret: "${JWT_SECRET:change-this-secret-to-a-long-256-bit-value-for-local-development}"
+    issuer: "ai-diagnostic-ticket-triage-api"
+    expiration-minutes: 60
