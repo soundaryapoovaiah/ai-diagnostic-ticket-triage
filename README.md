@@ -1,4 +1,5 @@
-**AI Diagnostic Ticket Triage API** is a production-style Java Spring Boot backend that uses AI to classify IT support tickets, predict severity, route incidents to the right team, retrieve similar historical tickets using PostgreSQL `pgvector`, and store every AI or human decision in an audit trail.
+**AI Diagnostic Ticket Triage API** 
+It is a production-style Java Spring Boot backend that uses AI to classify IT support tickets, predict severity, route incidents to the right team, retrieve similar historical tickets using PostgreSQL `pgvector`, and store every AI or human decision in an audit trail.
 
 This project demonstrates practical backend engineering across:
 
