@@ -9,6 +9,7 @@ This project demonstrates practical backend engineering across:
 - OpenAI integration with fallback handling
 - Human-in-the-loop AI design
 - Audit logging and manual override workflows
+- Spring Security JWT authentication and role-based authorization
 - Docker Compose deployment
 - Swagger/OpenAPI documentation
 - JUnit, Mockito, and GitHub Actions CI
@@ -66,9 +67,11 @@ When a ticket is created, the backend can:
 7. Store all AI and human actions in audit logs.
 8. Generate embeddings for tickets.
 9. Retrieve similar tickets using PostgreSQL `pgvector`.
-10. Expose all APIs through Swagger.
-11. Run locally or through Docker Compose.
-12. Validate the build using automated GitHub Actions CI.
+10. Authenticate users using JWT access tokens.
+11. Enforce role-based access for ADMIN, USER, and SUPPORT_AGENT.
+12. Expose all APIs through Swagger.
+13. Run locally or through Docker Compose.
+14. Validate the build using automated GitHub Actions CI.
 
 ---
 
@@ -81,6 +84,7 @@ Client / Postman / Swagger
 Spring Boot REST API
         |
         |-- HealthCheckController
+        |-- AuthController
         |-- TicketController
         |
         |-- TicketService
@@ -102,6 +106,11 @@ Spring Boot REST API
         |     |-- Local embedding generation
         |     |-- pgvector similarity query
         |
+        |-- Spring Security Layer
+        |     |-- JWT login and token validation
+        |     |-- BCrypt password hashing
+        |     |-- Role-based authorization
+        |
         v
 PostgreSQL + pgvector
         |
@@ -109,6 +118,7 @@ PostgreSQL + pgvector
         |-- ticket_ai_triage
         |-- ticket_audit_logs
         |-- ticket_embeddings
+        |-- app_users
         |-- flyway_schema_history
 ```
 
@@ -126,6 +136,7 @@ PostgreSQL + pgvector
 | Vector Search | pgvector |
 | Schema Migration | Flyway |
 | AI Integration | OpenAI API client with fallback |
+| Security | Spring Security, JWT, BCrypt, Role-Based Access Control |
 | API Documentation | Swagger / OpenAPI |
 | Testing | JUnit 5, Mockito |
 | Containerization | Docker, Docker Compose |
@@ -559,17 +570,105 @@ This proves the project builds and tests successfully outside my local machine.
 
 ---
 
+### Stage 13: Spring Security JWT Authentication and Role-Based Authorization
+
+I added authentication and authorization using Spring Security.
+
+Implemented security features:
+
+```text
+Register API
+Login API
+JWT access token generation
+BCrypt password hashing
+Role-based access control
+Protected ticket APIs
+Custom 401 and 403 JSON security responses
+```
+
+Authentication APIs:
+
+```http
+POST /api/v1/auth/register
+POST /api/v1/auth/login
+```
+
+The system supports three roles:
+
+```text
+USER
+SUPPORT_AGENT
+ADMIN
+```
+
+Role-based access rules:
+
+| Role | Access |
+|---|---|
+| USER | Can create and view tickets |
+| SUPPORT_AGENT | Can view, triage, and manually override tickets |
+| ADMIN | Can view tickets, override tickets, and access audit logs |
+
+Login response returns a JWT access token:
+
+```json
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
+  "tokenType": "Bearer",
+  "expiresInSeconds": 3600,
+  "user": {
+    "id": 2,
+    "fullName": "Support Agent",
+    "email": "agent@example.com",
+    "role": "SUPPORT_AGENT",
+    "enabled": true
+  }
+}
+```
+
+The JWT is passed to protected APIs using:
+
+```http
+Authorization: Bearer <access-token>
+```
+
+Password security:
+
+```text
+Raw passwords are never stored.
+Passwords are hashed using BCrypt and stored in the app_users table as password_hash.
+```
+
+Security exception handling:
+
+```text
+Missing or invalid token -> 401 Unauthorized
+Valid token but insufficient role -> 403 Forbidden
+```
+
+Why this matters:
+
+- Protects business APIs from unauthenticated access.
+- Demonstrates enterprise-style backend security.
+- Shows Spring Security, JWT, BCrypt, and role-based authorization skills.
+- Makes the AI workflow safer by limiting override and audit access to authorized roles.
+
+
+---
+
 ## API Endpoint Summary
 
 | Method | Endpoint | Purpose |
 |---|---|---|
 | GET | `/api/v1/health` | Health check |
+| POST | `/api/v1/auth/register` | Register a new user |
+| POST | `/api/v1/auth/login` | Login and receive JWT access token |
 | POST | `/api/v1/tickets` | Create ticket |
 | GET | `/api/v1/tickets` | Get all tickets |
 | GET | `/api/v1/tickets/{id}` | Get ticket by ID |
-| POST | `/api/v1/tickets/{id}/triage` | Run AI/fallback triage |
-| PATCH | `/api/v1/tickets/{id}/override` | Manually override AI decision |
-| GET | `/api/v1/tickets/{id}/audit` | View audit history |
+| POST | `/api/v1/tickets/{id}/triage` | Run AI/fallback triage; requires SUPPORT_AGENT or ADMIN |
+| PATCH | `/api/v1/tickets/{id}/override` | Manually override AI decision; requires SUPPORT_AGENT or ADMIN |
+| GET | `/api/v1/tickets/{id}/audit` | View audit history; requires ADMIN |
 | GET | `/api/v1/tickets/{id}/similar` | Find similar historical tickets |
 | POST | `/api/v1/tickets/embeddings/backfill` | Generate/update ticket embeddings |
 
@@ -583,6 +682,7 @@ This proves the project builds and tests successfully outside my local machine.
 | `ticket_ai_triage` | Stores AI/fallback decision metadata |
 | `ticket_audit_logs` | Stores AI and human decision history |
 | `ticket_embeddings` | Stores pgvector embeddings for similarity search |
+| `app_users` | Stores registered users, BCrypt password hashes, roles, and enabled status |
 | `flyway_schema_history` | Tracks applied database migrations |
 
 ---
@@ -628,6 +728,35 @@ This proves the project builds and tests successfully outside my local machine.
 ### GitHub Actions CI Passing
 
 ![GitHub Actions CI Passing](docs/screenshots/stage-12-github-actions-ci-passing.png)
+
+
+### Spring Security User Table and BCrypt Password Hashing
+
+![BCrypt Password Hashing](docs/screenshots/stage-13-password-hashed-postgresql.png)
+
+### JWT Login Response
+
+![JWT Login Response](docs/screenshots/stage-13-login-support-agent-jwt-response.png)
+
+### Protected API with JWT
+
+![Protected API with JWT](docs/screenshots/stage-13-protected-api-with-jwt-200.png)
+
+### Security 401 JSON Response
+
+![Security 401 JSON Response](docs/screenshots/stage-13-security-401-json-response.png)
+
+### Security 403 JSON Response
+
+![Security 403 JSON Response](docs/screenshots/stage-13-security-403-json-response.png)
+
+### Role-Based Access: Admin Can View Audit Logs
+
+![Admin Can View Audit Logs](docs/screenshots/stage-13-admin-can-view-audit.png)
+
+### Spring Security CI Passing
+
+![Spring Security CI Passing](docs/screenshots/stage-13-security-ci-passing.png)
 
 ---
 
@@ -713,6 +842,7 @@ SPRING_DATASOURCE_USERNAME
 SPRING_DATASOURCE_PASSWORD
 OPENAI_API_KEY
 OPENAI_MODEL
+JWT_SECRET
 ```
 
 Example:
@@ -720,9 +850,10 @@ Example:
 ```text
 OPENAI_API_KEY=your_key_here
 OPENAI_MODEL=gpt-4o-mini
+JWT_SECRET=change-this-secret-for-production
 ```
 
-Real API keys should never be committed to GitHub.
+Real API keys and production JWT secrets should never be committed to GitHub.
 
 ---
 
@@ -740,6 +871,7 @@ The test suite validates:
 - Service logic
 - Not-found exception handling
 - AI fallback behavior
+- Spring Security authentication and authorization behavior
 
 ---
 
@@ -752,6 +884,24 @@ GitHub Actions workflow:
 ```
 
 The workflow starts a PostgreSQL pgvector service container and runs Maven tests and package build.
+
+---
+
+## Security Testing Checklist
+
+The following security flows were tested in Postman:
+
+| Scenario | Expected Result |
+|---|---|
+| Register ADMIN, USER, and SUPPORT_AGENT | User saved with BCrypt password hash |
+| Login with valid credentials | JWT access token returned |
+| Login with invalid credentials | 401 Unauthorized |
+| Access ticket APIs without token | 401 Unauthorized |
+| Access ticket APIs with valid token | 200 OK |
+| USER tries to override AI decision | 403 Forbidden |
+| SUPPORT_AGENT overrides AI decision | 200 OK |
+| SUPPORT_AGENT tries to view audit logs | 403 Forbidden |
+| ADMIN views audit logs | 200 OK |
 
 ---
 ## Author
